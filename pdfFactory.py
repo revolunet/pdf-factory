@@ -14,7 +14,7 @@ import tempfile
 __author__ = "LaurentMox"
 __copyright__ = "Copyright 2013, Revolunet"
 __credits__ = ["Revolunet"]
-__license__ = "BSD"
+__license__ = "MIT"
 __version__ = "0.9.0"
 __maintainer__ = "LaurentMox"
 __email__ = "laurent@revolunet.com"
@@ -123,7 +123,7 @@ if __name__ == '__main__':
         # ftp, ssh etc ?
         if sys.argv[1].startswith(('http://', 'https://')):
             try:
-                r = requests.get('https://github.com/timeline.json')
+                r = requests.get(sys.argv[1])
                 config = r.json()[0]
             except:
                 log.error("\033[31mCannot load json from '%s'.\033[m", sys.argv[1])
@@ -153,6 +153,12 @@ if __name__ == '__main__':
 
         # Merge PDF
         log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
+        # ToDo: Check return value
         out_pdf = pdftk.concat(merge_list, output)
+        if 'callback' in config:
+            try:
+                requests.head(config['callback'])
+            except:
+                log.error("Cannot make request to callback !")
         clean_tmp()
     log.info('\033[33mEnded sucessfuly\033[m')
