@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python
 # -*- encoding: UTF-8 -*-
 """Parse a JSON to generate several PDF then merge them."""
 
@@ -7,7 +7,7 @@ import shutil
 import json
 import logging
 import requests
-import pdftk
+import pypdftk
 import subprocess
 import tempfile
 
@@ -103,7 +103,7 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
     if fill_forms and item.get('data'):
         log.info("Filling \033[33m'%s'\033[m with data...", pdf_filename)
         filled_file, filled_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
-        pdftk.fill_form(pdf_filename, item['data'], filled_filename)
+        pypdftk.fill_form(pdf_filename, item['data'], filled_filename)
         pdf_filename = filled_filename
 
     return pdf_filename
@@ -124,7 +124,7 @@ if __name__ == '__main__':
         if sys.argv[1].startswith(('http://', 'https://')):
             try:
                 r = requests.get(sys.argv[1])
-                config = r.json()[0]
+                config = r.json()
             except:
                 log.error("\033[31mCannot load json from '%s'.\033[m", sys.argv[1])
                 sys.exit()
@@ -154,7 +154,7 @@ if __name__ == '__main__':
         # Merge PDF
         log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
         # ToDo: Check return value
-        out_pdf = pdftk.concat(merge_list, output)
+        out_pdf = pypdftk.concat(merge_list, output)
         if 'callback' in config:
             try:
                 requests.head(config['callback'])
