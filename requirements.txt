@@ -1,1 +1,1 @@
-git+https://github.com/revolunet/pypdftk.git@07a7f62704a688efd94cc00a8031a839c7e7ec68
+git+https://github.com/revolunet/pypdftk.git@5dd8cf3faa99e1b2ddcb5c664504b43b8a187d90

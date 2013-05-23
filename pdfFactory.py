@@ -3,6 +3,8 @@
 """Parse a JSON to generate several PDF then merge them."""
 
 import sys
+import os
+import traceback
 import shutil
 import json
 import logging
@@ -41,33 +43,50 @@ def usage():
     print "\t", sys.argv[0], "http://www.foo.bar/document.json"
 
 
+def clean_failure(tmp_dir=DEFAULT_TMP_DIR):
+    successCallback(False)
+    # clean_tmp(tmp_dir)
+    sys.exit()
+
+
 def clean_tmp(folder=DEFAULT_TMP_DIR):
     """supprime les fichiers et dossiers temporaires"""
     log.info("Deleting temporary folder: \033[34m'%s'\033[m...", folder)
     shutil.rmtree(folder)
 
 
+def successCallback(success):
+    if success:
+        payload = '{"success":true}'
+    else:
+        payload = '{"success":false}'
+    try:
+        requests.post(config['callback'], data=payload, timeout=2)
+    #ToDo: What to do ?
+    except:
+        pass
+
+
 def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
     log.debug("Processing item: \033[34m%s\033[m", item)
     uri = item['uri']
-
     output = item.get('output')
 
     fill_forms = True
 
     if uri.startswith(('http://', 'https://')):
         f = requests.head(uri)
-        print f.headers
         ftype = f.headers['content-type']
         if ftype.startswith('application/json'):
             # Start script recursively
             print "JSON !!"
         elif ftype.startswith('application/pdf'):
-            log.info("\033[33mSaving pdf from network\033[m")
-            # Write PDF
+            f = requests.get(uri)
             pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
-            pdf_file.write(f.content)
-            # pdf_file.close()
+            log.info("\033[33mSaving pdf from network to local '%s'\033[m", pdf_filename)
+            # Write PDF
+            os.write(pdf_file, f.content)
+            os.close(pdf_file)
         elif ftype.startswith('text/html'):
             # Make PDF form URL
             # ToDo: Options a definir
@@ -103,7 +122,11 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
     if fill_forms and item.get('data'):
         log.info("Filling \033[33m'%s'\033[m with data...", pdf_filename)
         filled_file, filled_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
-        pypdftk.fill_form(pdf_filename, item['data'], filled_filename)
+        try:
+            pypdftk.fill_form(pdf_filename, item['data'], filled_filename)
+        except:
+            os.remove(filled_filename)
+            raise
         pdf_filename = filled_filename
 
     return pdf_filename
@@ -127,6 +150,7 @@ if __name__ == '__main__':
                 config = r.json()
             except:
                 log.error("\033[31mCannot load json from '%s'.\033[m", sys.argv[1])
+                successCallback(False)
                 sys.exit()
         else:
             try:
@@ -135,21 +159,28 @@ if __name__ == '__main__':
                 json_file.close()
             except:
                 log.error("\033[31mCannot read json file '%s'.\033[m", sys.argv[1])
+                successCallback(False)
                 sys.exit()
 
         try:
             output = config['output']
             merge_list = []
-            if 'data' in config:
-                global_data = config['data']
             for item in config['items']:
-                item_data = global_data.copy()
-                item_data.update(item['data'])
+                if 'data' in config:
+                    item_data = config['data'].copy()
+                else:
+                    item_data = []
+                if 'data' in item:
+                    item_data.update(item['data'])
                 item['data'] = item_data
                 merge_list.append(processItem(item))
         except KeyError as e:
             log.error("\033[31mError when parsing JSON file, some important values are missing !\033[m")
             log.error("Missing: \033[33m%s\033[m value.", e)
+            clean_failure()
+        except:
+            log.error("\033[31mCannot proceed, got an unknown error:\033[m\n %s\n", traceback.format_exc())
+            clean_failure()
 
         # Merge PDF
         log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
@@ -157,8 +188,8 @@ if __name__ == '__main__':
         out_pdf = pypdftk.concat(merge_list, output)
         if 'callback' in config:
             try:
-                requests.head(config['callback'])
+                successCallback(True)
             except:
-                log.error("Cannot make request to callback !")
+                log.error("\033[31mCannot make request to callback !\033[m")
         clean_tmp()
     log.info('\033[33mEnded sucessfuly\033[m')
