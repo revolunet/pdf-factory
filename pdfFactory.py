@@ -6,6 +6,7 @@ import sys
 import os
 import traceback
 import shutil
+from time import sleep
 import json
 import logging
 import requests
@@ -34,6 +35,7 @@ log.addHandler(logging.StreamHandler())
 
 # Base output directory
 OUTPUT_DIR = "output"
+TIMEOUT = 9600
 DEFAULT_TMP_DIR = tempfile.mkdtemp(prefix="pdfFactory-")
 
 
@@ -94,23 +96,37 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
             pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
             print "pdf_file: %s" % pdf_filename
             log.info("\033[33mCalling WKHTMLTOPDF on '%s'\033[m", uri)
-            subprocess.check_output([
-                '/home/laurent/Téléchargements/Apps/wkhtmltopdf-i386',
-                '--debug-javascript',
-                '--window-status',
-                'ready',
+
+            WKHTMLTOPDF = '/home/laurent/Téléchargements/Apps/wkhtmltopdf-i386'
+            wk_options = [
+                WKHTMLTOPDF,
+                # '--debug-javascript',
                 '--disable-smart-shrinking',
                 '--print-media-type',
                 '--use-xserver',
-                uri,
-                pdf_filename])
+            ]
+            if "options" in item:
+                for option in item["options"]:
+                    wk_options.append(option)
+            wk_options.append(uri)
+            wk_options.append(pdf_filename)
+            print "options: %s" % wk_options
+            p = subprocess.Popen(wk_options)
+            timeout = TIMEOUT
+            while p.poll() is None:
+                if timeout == 0:
+                    p.terminate()
+                    log.error('033[31mWkhtmltopdf process took too much time. Aborting.033[m')
+                    raise Exception('WKHTMLTOPDF_TIMEOUT')
+                timeout -= 1
+                sleep(0.05)
             log.info("\033[33mWKHTMLTOPDF ended.\033[m")
     else:
         # Use the 'mimetype' system command to determine filetype
         # -b is for brief response, -M is for Magic Only.
         ftype = subprocess.check_output(['mimetype', '-b', '-M', uri]).strip()
         if ftype == 'application/json':
-            print "JSON !!"
+            print "JSON !"
         elif ftype == 'application/pdf':
             pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
             log.info("Copying \033[33m'%s'\033[m to \033[33m'%s'\033[m...", uri, pdf_filename)
