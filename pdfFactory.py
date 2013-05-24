@@ -69,6 +69,40 @@ def successCallback(success):
         pass
 
 
+def call_wkhtmltopdf(item, tmp_dir):
+    uri = item['uri']
+    pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
+
+    print "pdf_file: %s" % pdf_filename
+    log.info("\033[33mCalling WKHTMLTOPDF on '%s'\033[m", uri)
+
+    WKHTMLTOPDF = '/home/laurent/Téléchargements/Apps/wkhtmltopdf-i386'
+    wk_options = [
+        WKHTMLTOPDF,
+        # '--debug-javascript',
+        '--disable-smart-shrinking',
+        '--print-media-type',
+        '--use-xserver',
+    ]
+    if "options" in item:
+        for option in item["options"]:
+            wk_options.append(option)
+    wk_options.append(uri)
+    wk_options.append(pdf_filename)
+    print "options: %s" % wk_options
+    p = subprocess.Popen(wk_options)
+    timeout = TIMEOUT
+    while p.poll() is None:
+        if timeout == 0:
+            p.terminate()
+            log.error('033[31mWkhtmltopdf process took too much time. Aborting.033[m')
+            raise Exception('WKHTMLTOPDF_TIMEOUT')
+        timeout -= 1
+        sleep(0.05)
+    log.info("\033[33mWKHTMLTOPDF ended.\033[m")
+    return pdf_filename
+
+
 def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
     log.debug("Processing item: \033[34m%s\033[m", item)
     uri = item['uri']
@@ -80,8 +114,8 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
         f = requests.head(uri)
         ftype = f.headers['content-type']
         if ftype.startswith('application/json'):
-            # Start script recursively
-            print "JSON !!"
+            # Start script recursively (ToDo)
+            print "JSON !"
         elif ftype.startswith('application/pdf'):
             f = requests.get(uri)
             pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
@@ -91,36 +125,8 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
             os.close(pdf_file)
         elif ftype.startswith('text/html'):
             # Make PDF form URL
-            # ToDo: Options a definir
             fill_forms = False
-            pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
-            print "pdf_file: %s" % pdf_filename
-            log.info("\033[33mCalling WKHTMLTOPDF on '%s'\033[m", uri)
-
-            WKHTMLTOPDF = '/home/laurent/Téléchargements/Apps/wkhtmltopdf-i386'
-            wk_options = [
-                WKHTMLTOPDF,
-                # '--debug-javascript',
-                '--disable-smart-shrinking',
-                '--print-media-type',
-                '--use-xserver',
-            ]
-            if "options" in item:
-                for option in item["options"]:
-                    wk_options.append(option)
-            wk_options.append(uri)
-            wk_options.append(pdf_filename)
-            print "options: %s" % wk_options
-            p = subprocess.Popen(wk_options)
-            timeout = TIMEOUT
-            while p.poll() is None:
-                if timeout == 0:
-                    p.terminate()
-                    log.error('033[31mWkhtmltopdf process took too much time. Aborting.033[m')
-                    raise Exception('WKHTMLTOPDF_TIMEOUT')
-                timeout -= 1
-                sleep(0.05)
-            log.info("\033[33mWKHTMLTOPDF ended.\033[m")
+            pdf_filename = call_wkhtmltopdf(item, tmp_dir)
     else:
         # Use the 'mimetype' system command to determine filetype
         # -b is for brief response, -M is for Magic Only.
@@ -200,7 +206,6 @@ if __name__ == '__main__':
 
         # Merge PDF
         log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
-        # ToDo: Check return value
         out_pdf = pypdftk.concat(merge_list, output)
         if 'callback' in config:
             try:
