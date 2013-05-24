@@ -1,6 +1,6 @@
 # PDF Factory
 
-PDF Factory is a Python script that parse a JSON to generate a PDF from several webpages or other PDF.
+PDF Factory is a Python script/module that parse a JSON to generate a PDF from several webpages or other PDF.
 
 As always, comments and contributions welcome ! :)
 
