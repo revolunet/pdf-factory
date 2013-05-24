@@ -33,10 +33,12 @@ logging.basicConfig(
 log = logging.getLogger()
 log.addHandler(logging.StreamHandler())
 
-# Base output directory
+####
+# Module configuration
 BASE_OUTPUT_DIR = "./outputs/"
 TIMEOUT = 9600
 DEFAULT_TMP_DIR = tempfile.mkdtemp(prefix="pdfFactory-")
+###
 
 
 def usage():
@@ -47,7 +49,7 @@ def usage():
 
 def clean_failure(tmp_dir=DEFAULT_TMP_DIR):
     successCallback(False)
-    # clean_tmp(tmp_dir)
+    clean_tmp(tmp_dir)
     sys.exit()
 
 
@@ -108,45 +110,58 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
 
     uri = item['uri']
     fill_forms = True
-    if uri.startswith(('http://', 'https://')):
-        f = requests.head(uri)
-        ftype = f.headers['content-type']
-        if ftype.startswith('application/json'):
-            # Start script recursively (ToDo)
-            print "JSON !"
-        elif ftype.startswith('application/pdf'):
-            f = requests.get(uri)
+    doFile = True
+    if os.path.lexists(item.get('output', '')):
+        if not item.get('overwrite', True):
             pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
-            log.info("\033[33mSaving pdf from network to local '%s'\033[m", pdf_filename)
-            # Write PDF
-            os.write(pdf_file, f.content)
             os.close(pdf_file)
-        elif ftype.startswith('text/html'):
-            # Make PDF form URL
-            fill_forms = False
-            pdf_filename = call_wkhtmltopdf(item, tmp_dir)
-    else:
-        # Use the 'mimetype' system command to determine filetype
-        # -b is for brief response, -M is for Magic Only.
-        ftype = subprocess.check_output(['mimetype', '-b', '-M', uri]).strip()
-        if ftype == 'application/json':
-            print "JSON !"
-        elif ftype == 'application/pdf':
-            pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
-            log.info("Copying \033[33m'%s'\033[m to \033[33m'%s'\033[m...", uri, pdf_filename)
-            shutil.copy2(uri, pdf_filename)
+            log.info("Copying existing file \033[33m'%s'\033[m to temporary \033[33m'%s'\033[m...", item['output'], pdf_filename)
+            shutil.copy2(item['output'], pdf_filename)
+            doFile = False
         else:
-            print "\033[33mWhat did you expect ?\033[m"
+            os.remove(item['output'])
+    if doFile:
+        if uri.startswith(('http://', 'https://')):
+            f = requests.head(uri)
+            ftype = f.headers['content-type']
+            if ftype.startswith('application/json'):
+                # Start script recursively (ToDo)
+                print "JSON !"
+            elif ftype.startswith('application/pdf'):
+                f = requests.get(uri)
+                pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
+                log.info("\033[33mSaving pdf from network to local '%s'\033[m", pdf_filename)
+                # Write PDF
+                os.write(pdf_file, f.content)
+                os.close(pdf_file)
+            elif ftype.startswith('text/html'):
+                # Make PDF form URL
+                fill_forms = False
+                pdf_filename = call_wkhtmltopdf(item, tmp_dir)
+        else:
+            # Use the 'mimetype' system command to determine filetype
+            # -b is for brief response, -M is for Magic Only.
+            ftype = subprocess.check_output(['mimetype', '-b', '-M', uri]).strip()
+            if ftype == 'application/json':
+                print "JSON !"
+            elif ftype == 'application/pdf':
+                pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
+                os.close(pdf_file)
+                log.info("Copying \033[33m'%s'\033[m to \033[33m'%s'\033[m...", uri, pdf_filename)
+                shutil.copy2(uri, pdf_filename)
+            else:
+                print "\033[33mWhat did you expect ?\033[m"
 
-    if 'output' in item:
-        output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(item['output']).replace("..", ""))
-        os.makedirs(os.path.dirname(output))
-        shutil.copy2(pdf_filename, output)
+        if 'output' in item:
+            output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(item['output']).replace("..", ""))
+            os.makedirs(os.path.dirname(output))
+            shutil.copy2(pdf_filename, output)
 
     # Use data (item specific as well as global) to fill PDF
     if fill_forms and item.get('data'):
         log.info("Filling \033[33m'%s'\033[m with data...", pdf_filename)
         filled_file, filled_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
+        os.close(filled_file)
         try:
             pypdftk.fill_form(pdf_filename, item['data'], filled_filename)
         except:
