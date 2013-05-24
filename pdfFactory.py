@@ -174,6 +174,46 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
     return pdf_filename
 
 
+def process(config):
+    if not os.path.lexists(config['output']) or config.get('overwrite', True):
+        try:
+            merge_list = []
+            for item in config['items']:
+                if 'data' in config:
+                    item_data = config['data'].copy()
+                else:
+                    item_data = []
+                if 'data' in item:
+                    item_data.update(item['data'])
+                item['data'] = item_data
+                merge_list.append(processItem(item))
+        except KeyError as e:
+            log.error("\033[31mError when parsing JSON file, some important values are missing !\033[m")
+            log.error("Missing: \033[33m%s\033[m value.", e)
+            clean_failure()
+        except:
+            log.error("\033[31mCannot proceed, got an unknown error:\033[m\n %s\n", traceback.format_exc())
+            clean_failure()
+
+        # Merge PDF
+        log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
+        # So A/foo/../B don't become A/
+        output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(config['output']).replace("..", ""))
+        outdir = os.path.dirname(output)
+        if not os.path.lexists(outdir):
+            os.makedirs(outdir)
+        pypdftk.concat(merge_list, output)
+    else:
+        log.info("Document \033[33m'%s'\033[m already exists and do not need re-generation.", config['output'])
+
+    if 'callback' in config:
+        try:
+            successCallback(True)
+        except:
+            log.error("\033[31mCannot make request to callback !\033[m")
+    clean_tmp()
+
+
 ####
 # Entry point
 ###
@@ -203,42 +243,6 @@ if __name__ == '__main__':
                 log.error("\033[31mCannot read json file '%s'.\033[m", sys.argv[1])
                 successCallback(False)
                 sys.exit()
-
-        if not os.path.lexists(config['output']) or config.get('overwrite', True):
-            try:
-                merge_list = []
-                for item in config['items']:
-                    if 'data' in config:
-                        item_data = config['data'].copy()
-                    else:
-                        item_data = []
-                    if 'data' in item:
-                        item_data.update(item['data'])
-                    item['data'] = item_data
-                    merge_list.append(processItem(item))
-            except KeyError as e:
-                log.error("\033[31mError when parsing JSON file, some important values are missing !\033[m")
-                log.error("Missing: \033[33m%s\033[m value.", e)
-                clean_failure()
-            except:
-                log.error("\033[31mCannot proceed, got an unknown error:\033[m\n %s\n", traceback.format_exc())
-                clean_failure()
-
-            # Merge PDF
-            log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
-            # So A/foo/../B don't become A/
-            output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(config['output']).replace("..", ""))
-            outdir = os.path.dirname(output)
-            if not os.path.lexists(outdir):
-                os.makedirs(outdir)
-            out_pdf = pypdftk.concat(merge_list, output)
-        else:
-            log.info("Document \033[33m'%s'\033[m already exists and do not need generation.", config['output'])
-
-        if 'callback' in config:
-            try:
-                successCallback(True)
-            except:
-                log.error("\033[31mCannot make request to callback !\033[m")
-        clean_tmp()
+        # Start processing json
+        process(config)
     log.info('\033[33mEnded successfully\033[m')
