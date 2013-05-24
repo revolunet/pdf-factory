@@ -34,7 +34,7 @@ log = logging.getLogger()
 log.addHandler(logging.StreamHandler())
 
 # Base output directory
-OUTPUT_DIR = "output"
+BASE_OUTPUT_DIR = "./outputs/"
 TIMEOUT = 9600
 DEFAULT_TMP_DIR = tempfile.mkdtemp(prefix="pdfFactory-")
 
@@ -105,11 +105,9 @@ def call_wkhtmltopdf(item, tmp_dir):
 
 def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
     log.debug("Processing item: \033[34m%s\033[m", item)
+
     uri = item['uri']
-    output = item.get('output')
-
     fill_forms = True
-
     if uri.startswith(('http://', 'https://')):
         f = requests.head(uri)
         ftype = f.headers['content-type']
@@ -139,6 +137,11 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
             shutil.copy2(uri, pdf_filename)
         else:
             print "\033[33mWhat did you expect ?\033[m"
+
+    if 'output' in item:
+        output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(item['output']).replace("..", ""))
+        os.makedirs(os.path.dirname(output))
+        shutil.copy2(pdf_filename, output)
 
     # Use data (item specific as well as global) to fill PDF
     if fill_forms and item.get('data'):
@@ -185,7 +188,6 @@ if __name__ == '__main__':
                 sys.exit()
 
         try:
-            output = config['output']
             merge_list = []
             for item in config['items']:
                 if 'data' in config:
@@ -206,6 +208,9 @@ if __name__ == '__main__':
 
         # Merge PDF
         log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
+        # So A/foo/../B don't become A/
+        output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(config['output']).replace("..", ""))
+        os.makedirs(os.path.dirname(output))
         out_pdf = pypdftk.concat(merge_list, output)
         if 'callback' in config:
             try:
@@ -213,4 +218,4 @@ if __name__ == '__main__':
             except:
                 log.error("\033[31mCannot make request to callback !\033[m")
         clean_tmp()
-    log.info('\033[33mEnded sucessfuly\033[m')
+    log.info('\033[33mEnded successfully\033[m')
