@@ -9,10 +9,11 @@ import shutil
 from time import sleep
 import json
 import logging
-import requests
-import pypdftk
 import subprocess
 import tempfile
+
+import requests
+import pypdftk
 
 __author__ = "LaurentMox"
 __copyright__ = "Copyright 2013, Revolunet"
