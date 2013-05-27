@@ -1,1 +1,1 @@
-git+https://github.com/revolunet/pypdftk.git@5dd8cf3faa99e1b2ddcb5c664504b43b8a187d90
+git+https://github.com/revolunet/pypdftk.git@pypdftk-0.2#egg=pypdftk
