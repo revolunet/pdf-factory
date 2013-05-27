@@ -1,3 +1,5 @@
 include README.md
 include pdfFactory.py
+include requirements.txt
+include licence.txt
 exclude *.pyc
