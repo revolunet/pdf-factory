@@ -28,6 +28,7 @@ log = logging.getLogger()
 
 ####
 # Module configuration
+WKHTMLTOPDF = 'wkhtmltopdf-i386'
 BASE_OUTPUT_DIR = "./outputs/"
 TIMEOUT = 2400
 ###
@@ -71,7 +72,6 @@ def call_wkhtmltopdf(item, tmp_dir):
     print "pdf_file: %s" % pdf_filename
     log.info("\033[33mCalling WKHTMLTOPDF on '%s'\033[m", uri)
 
-    WKHTMLTOPDF = '/home/laurent/Téléchargements/Apps/wkhtmltopdf-i386'
     wk_options = [
         WKHTMLTOPDF,
         # '--debug-javascript',
@@ -150,7 +150,7 @@ def processItem(item, tmp_dir):
                 raise Exception('Unsupported file type', ftype)
 
         if 'output' in item:
-            output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(item['output']).replace("..", ""))
+            output = os.path.abspath(os.path.join(BASE_OUTPUT_DIR, os.path.normpath(item['output']).replace("..", "")))
             outdir = os.path.dirname(output)
             if not os.path.lexists(outdir):
                 os.makedirs(outdir)
@@ -198,7 +198,7 @@ def process(config):
         # Merge PDF
         log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
         # So A/foo/../B don't become A/
-        output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(config['output']).replace("..", ""))
+        output = os.path.abspath(os.path.join(BASE_OUTPUT_DIR, os.path.normpath(config['output']).replace("..", "")))
         outdir = os.path.dirname(output)
         if not os.path.lexists(outdir):
             os.makedirs(outdir)
