@@ -30,7 +30,6 @@ log = logging.getLogger()
 # Module configuration
 BASE_OUTPUT_DIR = "./outputs/"
 TIMEOUT = 2400
-DEFAULT_TMP_DIR = tempfile.mkdtemp(prefix="pdfFactory-")
 ###
 
 
@@ -40,13 +39,13 @@ def usage():
     print "\t", sys.argv[0], "http://www.foo.bar/document.json"
 
 
-def clean_failure(callback=None, tmp_dir=DEFAULT_TMP_DIR):
+def clean_failure(tmp_dir, callback=None):
     successCallback(False, callback)
     clean_tmp(tmp_dir)
     sys.exit()
 
 
-def clean_tmp(folder=DEFAULT_TMP_DIR):
+def clean_tmp(folder):
     """supprime les fichiers et dossiers temporaires"""
     log.info("Deleting temporary folder: \033[34m'%s'\033[m...", folder)
     shutil.rmtree(folder)
@@ -99,7 +98,7 @@ def call_wkhtmltopdf(item, tmp_dir):
     return pdf_filename
 
 
-def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
+def processItem(item, tmp_dir):
     log.debug("Processing item: \033[34m%s\033[m", item)
 
     uri = item['uri']
@@ -169,7 +168,9 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
 
 
 def process(config):
+    tmp_dir = tempfile.mkdtemp(prefix="pdfFactory-")
     callback = config.get('callback', None)
+
     if not os.path.lexists(config['output']) or config.get('overwrite', True):
         try:
             merge_list = []
@@ -181,14 +182,14 @@ def process(config):
                 if 'data' in item:
                     item_data.update(item['data'])
                 item['data'] = item_data
-                merge_list.append(processItem(item))
+                merge_list.append(processItem(item, tmp_dir))
         except KeyError as e:
             log.error("\033[31mError when parsing JSON file, some important values are missing !\033[m")
             log.error("Missing: \033[33m%s\033[m value.", e)
-            clean_failure(callback)
+            clean_failure(tmp_dir, callback)
         except:
             log.error("\033[31mCannot proceed, got an unknown error:\033[m\n %s\n", traceback.format_exc())
-            clean_failure(callback)
+            clean_failure(tmp_dir, callback)
 
         # Merge PDF
         log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
@@ -202,7 +203,7 @@ def process(config):
         log.info("Document \033[33m'%s'\033[m already exists and do not need re-generation.", config['output'])
 
     successCallback(True, callback)
-    clean_tmp()
+    clean_tmp(tmp_dir)
 
 
 ####
