@@ -24,20 +24,12 @@ __maintainer__ = "LaurentMox"
 __email__ = "laurent@revolunet.com"
 __status__ = "Development"
 
-# Logging configuration
-logging.basicConfig(
-    filename='pdfFactory.log',
-    level=logging.DEBUG,
-    format='%(asctime)s %(levelname)s - %(message)s',
-    datefmt='%d/%m/%Y %H:%M:%S',
-)
 log = logging.getLogger()
-log.addHandler(logging.StreamHandler())
 
 ####
 # Module configuration
 BASE_OUTPUT_DIR = "./outputs/"
-TIMEOUT = 9600
+TIMEOUT = 2400
 DEFAULT_TMP_DIR = tempfile.mkdtemp(prefix="pdfFactory-")
 ###
 
@@ -48,8 +40,8 @@ def usage():
     print "\t", sys.argv[0], "http://www.foo.bar/document.json"
 
 
-def clean_failure(tmp_dir=DEFAULT_TMP_DIR):
-    successCallback(False)
+def clean_failure(callback=None, tmp_dir=DEFAULT_TMP_DIR):
+    successCallback(False, callback)
     clean_tmp(tmp_dir)
     sys.exit()
 
@@ -60,16 +52,17 @@ def clean_tmp(folder=DEFAULT_TMP_DIR):
     shutil.rmtree(folder)
 
 
-def successCallback(success):
-    if success:
-        payload = '{"success":true}'
-    else:
-        payload = '{"success":false}'
-    try:
-        requests.post(config['callback'], data=payload, timeout=2)
-    #ToDo: What to do ?
-    except:
-        pass
+def successCallback(success, callback):
+    if callback is not None:
+        if success:
+            payload = '{"success":true}'
+        else:
+            payload = '{"success":false}'
+        try:
+            log.info("\033[33mInforming callback\033[m")
+            requests.post(callback, data=payload, timeout=2)
+        except:
+            log.error("\033[33mCan't post to callback !\033[m\n%s", traceback.format_exc())
 
 
 def call_wkhtmltopdf(item, tmp_dir):
@@ -176,6 +169,7 @@ def processItem(item, tmp_dir=DEFAULT_TMP_DIR):
 
 
 def process(config):
+    callback = config.get('callback', None)
     if not os.path.lexists(config['output']) or config.get('overwrite', True):
         try:
             merge_list = []
@@ -191,10 +185,10 @@ def process(config):
         except KeyError as e:
             log.error("\033[31mError when parsing JSON file, some important values are missing !\033[m")
             log.error("Missing: \033[33m%s\033[m value.", e)
-            clean_failure()
+            clean_failure(callback)
         except:
             log.error("\033[31mCannot proceed, got an unknown error:\033[m\n %s\n", traceback.format_exc())
-            clean_failure()
+            clean_failure(callback)
 
         # Merge PDF
         log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
@@ -207,11 +201,7 @@ def process(config):
     else:
         log.info("Document \033[33m'%s'\033[m already exists and do not need re-generation.", config['output'])
 
-    if 'callback' in config:
-        try:
-            successCallback(True)
-        except:
-            log.error("\033[31mCannot make request to callback !\033[m")
+    successCallback(True, callback)
     clean_tmp()
 
 
@@ -219,7 +209,15 @@ def process(config):
 # Entry point
 ###
 if __name__ == '__main__':
-
+    # Logging configuration
+    #file handler
+    # logging.basicConfig(
+    #     filename='pdfFactory.log',
+    #     level=logging.DEBUG,
+    #     format='%(asctime)s %(levelname)s - %(message)s',
+    #     datefmt='%d/%m/%Y %H:%M:%S',
+    # )
+    log.addHandler(logging.StreamHandler())
     if ("--help" in sys.argv) or ("-h" in sys.argv) or (len(sys.argv) != 2):
         log.debug('\033[33mStarted with no arg or help\033[m')
         usage()
@@ -233,7 +231,6 @@ if __name__ == '__main__':
                 config = r.json()
             except:
                 log.error("\033[31mCannot load json from '%s'.\033[m", sys.argv[1])
-                successCallback(False)
                 sys.exit()
         else:
             try:
@@ -242,7 +239,6 @@ if __name__ == '__main__':
                 json_file.close()
             except:
                 log.error("\033[31mCannot read json file '%s'.\033[m", sys.argv[1])
-                successCallback(False)
                 sys.exit()
         # Start processing json
         process(config)
