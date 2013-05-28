@@ -117,6 +117,7 @@ def processItem(item, tmp_dir):
         if uri.startswith(('http://', 'https://')):
             f = requests.head(uri)
             ftype = f.headers['content-type']
+            f.raise_for_status()
             if ftype.startswith('application/json'):
                 # Start script recursively (ToDo)
                 print "JSON !"
@@ -134,8 +135,11 @@ def processItem(item, tmp_dir):
         else:
             # Use the 'mimetype' system command to determine filetype
             # -b is for brief response, -M is for Magic Only.
+            if not os.path.isfile(uri):
+                raise Exception('File do not exist', uri)
             ftype = subprocess.check_output(['mimetype', '-b', '-M', uri]).strip()
             if ftype == 'application/json':
+                # Start script recursively (ToDo)
                 print "JSON !"
             elif ftype == 'application/pdf':
                 pdf_file, pdf_filename = tempfile.mkstemp(dir=tmp_dir, suffix=".pdf")
@@ -143,7 +147,7 @@ def processItem(item, tmp_dir):
                 log.info("Copying \033[33m'%s'\033[m to \033[33m'%s'\033[m...", uri, pdf_filename)
                 shutil.copy2(uri, pdf_filename)
             else:
-                print "\033[33mWhat did you expect ?\033[m"
+                raise Exception('Unsupported file type', ftype)
 
         if 'output' in item:
             output = os.path.abspath(BASE_OUTPUT_DIR + '/' + os.path.normpath(item['output']).replace("..", ""))
