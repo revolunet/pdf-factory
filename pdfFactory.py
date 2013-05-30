@@ -37,9 +37,11 @@ log = logging.getLogger()
 # Module configuration
 # Full path to WKHTMLTOPDF binary
 WKHTMLTOPDF = 'wkhtmltopdf-i386'
+# Full path to PDFTK binary
+# pypdftk.PDFTK_PATH = '/usr/bin/pdftk'
 # Path where the final PDF files are stored
 BASE_OUTPUT_DIR = "./outputs/"
-# WKHTMLTOPDF conversion timeout 
+# WKHTMLTOPDF conversion timeout
 TIMEOUT = 2400
 ###
 
@@ -121,7 +123,10 @@ def call_wkhtmltopdf(uri, tmp_dir, options=[]):
             raise Exception('WKHTMLTOPDF_TIMEOUT')
         timeout -= 1
         sleep(0.05)
-    log.info("\033[33mWKHTMLTOPDF ended.\033[m")
+    if p.returncode != 0:
+        log.error('033[31mWkhtmltopdf return code is not zero. Aborting.033[m')
+        raise Exception('WKHTMLTOPDF_ERROR')
+    log.info("\033[33mWKHTMLTOPDF ended successfully.\033[m")
     return pdf_filename
 
 
