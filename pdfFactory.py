@@ -43,6 +43,8 @@ WKHTMLTOPDF = 'wkhtmltopdf-i386'
 BASE_OUTPUT_DIR = "./outputs/"
 # WKHTMLTOPDF conversion timeout
 TIMEOUT = 2400
+# Should we stop process if error occurs ?
+ABORT_ON_FAILURE = True
 ###
 
 
@@ -123,7 +125,7 @@ def call_wkhtmltopdf(uri, tmp_dir, options=[]):
             raise Exception('WKHTMLTOPDF_TIMEOUT')
         timeout -= 1
         sleep(0.05)
-    if p.returncode != 0:
+    if p.returncode != 0 and ABORT_ON_FAILURE:
         log.error('\033[31mWkhtmltopdf return code is not zero. Aborting.\033[m')
         raise Exception('WKHTMLTOPDF_ERROR')
     log.info("\033[33mWKHTMLTOPDF ended successfully.\033[m")
