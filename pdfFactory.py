@@ -119,12 +119,12 @@ def call_wkhtmltopdf(uri, tmp_dir, options=[]):
     while p.poll() is None:
         if timeout == 0:
             p.terminate()
-            log.error('033[31mWkhtmltopdf process took too much time. Aborting.033[m')
+            log.error('\033[31mWkhtmltopdf process took too much time. Aborting.\033[m')
             raise Exception('WKHTMLTOPDF_TIMEOUT')
         timeout -= 1
         sleep(0.05)
     if p.returncode != 0:
-        log.error('033[31mWkhtmltopdf return code is not zero. Aborting.033[m')
+        log.error('\033[31mWkhtmltopdf return code is not zero. Aborting.\033[m')
         raise Exception('WKHTMLTOPDF_ERROR')
     log.info("\033[33mWKHTMLTOPDF ended successfully.\033[m")
     return pdf_filename
