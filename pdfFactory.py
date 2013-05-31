@@ -54,6 +54,9 @@ def usage():
     print "\t", sys.argv[0], "http://www.foo.bar/document.json"
 
 
+def set_pdftk_path(path):
+    pypdftk.PDFTK_PATH = path
+
 def clean_failure(tmp_dir, callback_url=None):
     ''' clean tmp folder and call callback '''
     if callback_url:
