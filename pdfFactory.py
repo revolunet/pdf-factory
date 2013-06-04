@@ -57,6 +57,7 @@ def usage():
 def set_pdftk_path(path):
     pypdftk.PDFTK_PATH = path
 
+
 def clean_failure(tmp_dir, callback_url=None):
     ''' clean tmp folder and call callback '''
     if callback_url:
@@ -160,14 +161,15 @@ def process_item(item, tmp_dir):
     if process_file:
         if uri.startswith(('http://', 'https://')):
             f = requests.head(uri)
-            ftype = f.headers['content-type']
             f.raise_for_status()
+            ftype = f.headers['content-type']
             if ftype.startswith('application/json'):
                 # Start script recursively (ToDo)
                 print "JSON !"
             elif ftype.startswith('application/pdf'):
                 # download the PDF
                 download = requests.get(uri)
+                download.raise_for_status()
                 pdf_filename = make_tmp_file(tmp_dir)
                 log.info("\033[33mSaving pdf from network to local '%s'\033[m", pdf_filename)
                 # Write PDF
@@ -266,6 +268,7 @@ if __name__ == '__main__':
         if sys.argv[1].startswith(('http://', 'https://')):
             try:
                 r = requests.get(sys.argv[1])
+                r.raise_for_status()
                 config = r.json()
             except:
                 log.error("\033[31mCannot load json from '%s'.\033[m", sys.argv[1])
