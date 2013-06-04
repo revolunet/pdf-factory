@@ -108,11 +108,7 @@ def call_wkhtmltopdf(uri, tmp_dir, options=[]):
     log.info("\033[33mCalling WKHTMLTOPDF on '%s'\033[m", uri)
 
     wk_options = [
-        WKHTMLTOPDF,
-        # '--debug-javascript',
-        '--disable-smart-shrinking',
-        '--print-media-type',
-        '--use-xserver',
+        WKHTMLTOPDF
     ]
     if options:
         wk_options += options
