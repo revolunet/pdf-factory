@@ -30,7 +30,7 @@ __maintainer__ = "LaurentMox"
 __email__ = "laurent@revolunet.com"
 __status__ = "Development"
 
-log = logging.getLogger()
+log = logging.getLogger(__name__)
 
 
 ####
@@ -55,6 +55,7 @@ def usage():
 
 
 def set_pdftk_path(path):
+    ''' Setter for pdftk path (usefull when pdfFactory is used as module) '''
     pypdftk.PDFTK_PATH = path
 
 
@@ -68,7 +69,7 @@ def clean_failure(tmp_dir, callback_url=None):
 
 def clean_tmp(folder):
     ''' clean the temp directory '''
-    log.info("Deleting temporary folder: \033[34m'%s'\033[m...", folder)
+    log.info("Deleting temporary folder: '%s'...", folder)
     shutil.rmtree(folder)
 
 
@@ -94,10 +95,10 @@ def success_callback(success, callback_url):
     if callback_url is not None:
         payload = '{"success":%s}' % str(success).lower()
         try:
-            log.info("\033[33mInforming callback\033[m")
+            log.info("Informing callback")
             requests.post(callback_url, data=payload, timeout=5)
         except:
-            log.error("\033[33mCan't post to callback !\033[m\n%s", traceback.format_exc())
+            log.error("Can't post to callback !\n%s", traceback.format_exc())
 
 
 def call_wkhtmltopdf(uri, tmp_dir, options=[]):
@@ -105,7 +106,7 @@ def call_wkhtmltopdf(uri, tmp_dir, options=[]):
 
     pdf_filename = make_tmp_file(tmp_dir)
 
-    log.info("\033[33mCalling WKHTMLTOPDF on '%s'\033[m", uri)
+    log.info("Calling WKHTMLTOPDF on '%s'", uri)
 
     wk_options = [
         WKHTMLTOPDF
@@ -121,14 +122,14 @@ def call_wkhtmltopdf(uri, tmp_dir, options=[]):
     while p.poll() is None:
         if timeout == 0:
             p.terminate()
-            log.error('\033[31mWkhtmltopdf took too much time processing "%s". Aborting.\033[m', uri)
+            log.error('Wkhtmltopdf took too much time processing "%s". Aborting.', uri)
             raise Exception('WKHTMLTOPDF_TIMEOUT', uri)
         timeout -= 1
         sleep(0.05)
     if p.returncode != 0 and ABORT_ON_FAILURE:
-        log.error('\033[31mWkhtmltopdf return code is not zero. Aborting. (URI: "%s"\033[m', uri)
+        log.error('Wkhtmltopdf return code is not zero. Aborting. (URI: "%s")', uri)
         raise Exception('WKHTMLTOPDF_ERROR', uri)
-    log.info("\033[33mWKHTMLTOPDF ended successfully.\033[m")
+    log.info("WKHTMLTOPDF ended successfully.")
     return pdf_filename
 
 
@@ -139,7 +140,7 @@ def process_item(item, tmp_dir):
           - copy local resources
           - use supplied data to fill the PDF form fields
     '''
-    log.debug("Processing item: \033[34m%s\033[m", item)
+    log.debug("Processing item: '%s'", item)
 
     uri = item['uri']
     fill_forms = True
@@ -151,7 +152,7 @@ def process_item(item, tmp_dir):
         else:
             # we reuse the existing file
             pdf_filename = make_tmp_file(tmp_dir)
-            log.info("Copying existing file \033[33m'%s'\033[m to temporary \033[33m'%s'\033[m...", item['output'], pdf_filename)
+            log.info("Copying existing file '%s' to temporary '%s'...", item['output'], pdf_filename)
             shutil.copy2(item['output'], pdf_filename)
             process_file = False
     if process_file:
@@ -167,7 +168,7 @@ def process_item(item, tmp_dir):
                 download = requests.get(uri)
                 download.raise_for_status()
                 pdf_filename = make_tmp_file(tmp_dir)
-                log.info("\033[33mSaving pdf from network to local '%s'\033[m", pdf_filename)
+                log.info("Saving pdf from network to local '%s'", pdf_filename)
                 # Write PDF
                 with open(pdf_filename, 'wb') as f:
                     f.write(download.content)
@@ -186,7 +187,7 @@ def process_item(item, tmp_dir):
                 print "JSON !"
             elif ftype == 'application/pdf':
                 pdf_filename = make_tmp_file(tmp_dir)
-                log.info("Copying \033[33m'%s'\033[m to \033[33m'%s'\033[m...", uri, pdf_filename)
+                log.info("Copying '%s' to '%s'...", uri, pdf_filename)
                 shutil.copy2(uri, pdf_filename)
             else:
                 raise Exception('Unsupported file type', ftype)
@@ -198,7 +199,7 @@ def process_item(item, tmp_dir):
 
     # Use data (item specific as well as global) to fill the PDF forms
     if fill_forms and item.get('data'):
-        log.info("Filling \033[33m'%s'\033[m with data...", pdf_filename)
+        log.info("Filling '%s' with data...", pdf_filename)
         filled_filename = make_tmp_file(tmp_dir)
         try:
             pypdftk.fill_form(pdf_filename, item['data'], filled_filename)
@@ -228,22 +229,22 @@ def process(config):
                 item['data'] = item_data
                 merge_list.append(process_item(item, tmp_dir))
         except KeyError as e:
-            log.error("\033[31mError when parsing JSON file, some important values are missing !\033[m")
-            log.error("Missing: \033[33m%s\033[m value.", e)
+            log.error("Error when parsing JSON file, some important values are missing !")
+            log.error("Missing value: %s", e)
             clean_failure(tmp_dir, callback_url)
         except:
-            log.error("\033[31mCannot proceed, got an unknown error:\033[m\n %s\n", traceback.format_exc())
+            log.error("Cannot proceed, got an unknown error:\n %s\n", traceback.format_exc())
             clean_failure(tmp_dir, callback_url)
 
         # Merge resulting PDF
-        log.debug("Merging pdf: \033[32m%s\033[m...", str(merge_list))
+        log.debug("Merging pdf: %s...", str(merge_list))
 
         # So A/foo/../B don't become A/
         output = os.path.join(BASE_OUTPUT_DIR, config['output'])
         check_output_folder(BASE_OUTPUT_DIR, output, create_folder=True)
         pypdftk.concat(merge_list, output)
     else:
-        log.info("Document \033[33m'%s'\033[m already exists and do not need re-generation.", config['output'])
+        log.info("Document '%s' already exists and do not need re-generation.", config['output'])
 
     success_callback(True, callback_url)
     clean_tmp(tmp_dir)
@@ -255,10 +256,10 @@ def process(config):
 if __name__ == '__main__':
     log.addHandler(logging.StreamHandler())
     if ("--help" in sys.argv) or ("-h" in sys.argv) or (len(sys.argv) != 2):
-        log.debug('\033[33mStarted with no arg or help\033[m')
+        log.debug('Started with no arg or help')
         usage()
     else:
-        log.info('Started with args \033[33m%s\033[m', sys.argv)
+        log.info('Started with args %s', sys.argv)
         # PARSE ARGUMENTS AND FETCH JSON
         # ftp, ssh etc ?
         if sys.argv[1].startswith(('http://', 'https://')):
@@ -267,7 +268,7 @@ if __name__ == '__main__':
                 r.raise_for_status()
                 config = r.json()
             except:
-                log.error("\033[31mCannot load json from '%s'.\033[m", sys.argv[1])
+                log.error("Cannot load json from '%s'.", sys.argv[1])
                 sys.exit()
         else:
             try:
@@ -275,8 +276,8 @@ if __name__ == '__main__':
                 config = json.load(json_file)
                 json_file.close()
             except:
-                log.error("\033[31mCannot read json file '%s'.\033[m", sys.argv[1])
+                log.error("Cannot read json file '%s'.", sys.argv[1])
                 sys.exit()
         # Start processing json
         process(config)
-    log.info('\033[33mEnded successfully\033[m')
+    log.info('Ended successfully')
