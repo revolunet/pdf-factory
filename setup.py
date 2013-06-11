@@ -11,7 +11,7 @@ setup(
     url='http://github.com/revolunet/pdf-factory',
     py_modules=['pdfFactory'],
     scripts=['pdfFactory.py'],
-    dependency_links=['https://github.com/revolunet/pypdftk/archive/8791997c426bd48ffe70bfd8259a512b62e6b1b1.tar.gz#egg=pypdftk-0.3'],
+    dependency_links=['https://github.com/revolunet/pypdftk/archive/33acc90f449933cc9826fc9f4b93e9eb92188b04.tar.gz#egg=pypdftk-0.3'],
     install_requires=['pypdftk>=0.3', 'requests>=1.2.2'],
     classifiers=['Development Status :: 4 - Beta',
                  'Environment :: Web Environment',
