@@ -206,7 +206,9 @@ def process_item(item, tmp_dir):
         except:
             if os.path.lexists(filled_filename):
                 os.remove(filled_filename)
-            raise
+            # raise
+            log.error("Got an exception when filling PDF '%s'. Using empty one instead.", pdf_filename)
+            filled_filename = pdf_filename
         pdf_filename = filled_filename
 
     return pdf_filename
